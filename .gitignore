@@ -31,3 +31,13 @@ auth/credentials.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Ignore everything in these folders
+backend/tokens/*
+backend/uploads/*
+backend/ReviewUploads/*
+
+# But keep .gitkeep
+!backend/tokens/.gitkeep
+!backend/uploads/.gitkeep
+!backend/ReviewUploads/.gitkeep
