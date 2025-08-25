@@ -1,6 +1,6 @@
 require("dotenv").config();
 require("./cronScheduler");
-require("./fileWatcher"); // This will start watching the uploads folder
+require("./FileWatcher"); // This will start watching the uploads folder
 const express = require("express");
 const session = require("express-session");
 // const passport = require('passport');
