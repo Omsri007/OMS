@@ -1,0 +1,47 @@
+.create-city-container {
+  width: 350px;
+  margin: 50px auto;
+  padding: 20px;
+  border-radius: 10px;
+  background: #f7f7f7;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.create-city-container h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.create-city-container input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+.create-city-container button {
+  width: 100%;
+  padding: 10px;
+  background-color: #4cafef;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.create-city-container button:disabled {
+  background-color: #9cd1f7;
+  cursor: not-allowed;
+}
+
+.create-city-container .message {
+  margin-top: 10px;
+  text-align: center;
+  font-weight: 500;
+  color: #333;
+}

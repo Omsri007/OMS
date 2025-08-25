@@ -1,0 +1,121 @@
+/* Container and overall layout */
+.bg-gray-100 {
+  background-color: #f7fafc;
+}
+
+.p-8 {
+  padding: 2rem;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.mb-8 {
+  margin-bottom: 2rem;
+}
+
+.py-3{
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+/* Heading */
+.text-4xl {
+  font-size: 2.25rem;
+}
+
+.font-bold {
+  font-weight: bold;
+}
+
+/* Table container */
+.bg-white {
+  background-color: white;
+}
+
+.shadow-lg {
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+.rounded-lg {
+  border-radius: 0.5rem;
+}
+
+.p-6 {
+  padding: 1.5rem;
+}
+
+/* Table styles */
+.min-w-full {
+  width: 100%;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: auto;
+}
+
+th, td {
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+}
+
+/* Header (field names) */
+th {
+  background-color: #5a67d8; /* Blue background */
+  color: white;              /* White text */
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Data (field values) */
+td {
+  background-color: #ebf4ff; /* Light blue background */
+  color: #2d3748;            /* Darker text */
+  text-align: left;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  th, td {
+    display: block;
+    width: 100%;
+    text-align: left;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+/* Border and spacing */
+.border {
+  border-width: 1px;
+  border-color: #cbd5e0;
+}
+
+.px-4 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+/* Misc */
+.bg-indigo-500 {
+  background-color: #5a67d8; /* Blue */
+}
+
+.text-white {
+  color: white;
+}
+
+.shad{
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+}

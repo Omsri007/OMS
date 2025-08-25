@@ -1,0 +1,138 @@
+/* Full-screen background with shapes */
+.login-container {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #0f172a; /* Dark professional background */
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Decorative shapes */
+.shape {
+  position: absolute;
+  opacity: 0.08;
+  z-index: 0;
+}
+
+/* Circle */
+.shape.circle {
+  width: 220px;
+  height: 220px;
+  background: #3b82f6;
+  border-radius: 50%;
+  top: 10%;
+  left: 15%;
+}
+
+/* Square */
+.shape.square {
+  width: 180px;
+  height: 180px;
+  background: #9333ea;
+  top: 60%;
+  right: 10%;
+  transform: rotate(15deg);
+}
+
+/* Small circle */
+.shape.small-circle {
+  width: 100px;
+  height: 100px;
+  background: #14b8a6;
+  border-radius: 50%;
+  bottom: 15%;
+  left: 5%;
+}
+
+/* Glassmorphism card */
+.login-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  padding: 2.5rem;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  width: 340px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  animation: fadeIn 0.6s ease-out;
+  z-index: 1; /* keep above shapes */
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Heading */
+.login-card h1 {
+  color: #ffffff;
+  margin-bottom: 1.8rem;
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Inputs */
+.login-card input {
+  width: 90%;
+  text-align: center;
+  padding: 0.85rem 1rem;
+  margin: 0.5rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  outline: none;
+  font-size: 1rem;
+  color: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-card input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.login-card input:focus {
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+}
+
+/* Button */
+.login-card button {
+  width: 100%;
+  padding: 0.9rem;
+  margin-top: 1.2rem;
+  background: linear-gradient(90deg, #3b82f6, #9333ea);
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.login-card button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
+}
+
+.login-card button:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* Mobile-friendly */
+@media (max-width: 400px) {
+  .login-card {
+    width: 90%;
+    padding: 2rem;
+  }
+  .login-card h1 {
+    font-size: 1.6rem;
+  }
+}
