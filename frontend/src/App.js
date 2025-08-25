@@ -34,7 +34,7 @@ function App() {
       try {
         // Get Google Client ID
         const resClient = await fetch(
-          "http://localhost:5000/api/google/client-id"
+          `${process.env.REACT_APP_API_URL}/api/google/client-id`
         );
         const dataClient = await resClient.json();
         setClientId(dataClient.clientId);
@@ -43,7 +43,7 @@ function App() {
         const token = localStorage.getItem("token");
 
         // Who am I?
-        const res = await fetch("http://localhost:5000/api/auth/me", {
+        const res = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/me`, {
           method: "GET",
           credentials: "include",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -57,7 +57,7 @@ function App() {
           // Check Gmail auth only for admin
           if (data.user?.role === "admin") {
             const gmailRes = await fetch(
-              "http://localhost:5000/api/auth/google/check-token",
+              `${process.env.REACT_APP_API_URL}/api/auth/google/check-token`,
               {
                 credentials: "include",
               }
