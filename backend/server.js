@@ -15,8 +15,8 @@ const fs = require("fs");
 
 const { connectDBs, getAuthDB } = require("./config/db");
 // const { setPassportDB } = require('./config/passport');
-const authRoutes = require("./routes/authRoutes");
-const orderRoutes = require("./routes/orderRoutes");
+const authRoutes = require("./Routes/authRoutes");
+const orderRoutes = require("./Routes/orderRoutes");
 const googleClientRoute = require("./Routes/googleClient");
 const uploadRoutes = require("./Routes/uploadRoutes");
 const googleRoute = require("./Routes/googleRoutes");
