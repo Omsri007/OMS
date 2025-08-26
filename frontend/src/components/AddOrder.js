@@ -65,7 +65,7 @@ const AddOrder = () => {
         downloadUrl.includes("X-Amz-Signature")
       ) {
         console.log("Processing S3 signed URL for backend download.");
-        const backendUrl = `${process.env.REACT_APP_API_BASE_URL}/api/orders/download-s3`;
+        const backendUrl = `${process.env.REACT_APP_API_URL}/api/orders/download-s3`;
         const res = await axios.post(
           backendUrl,
           { url: downloadUrl },
@@ -155,7 +155,7 @@ const AddOrder = () => {
       const formData = new FormData();
       formData.append("file", file);
 
-      const apiUrl = `${process.env.REACT_APP_API_BASE_URL}/api/orders/upload-file`;
+      const apiUrl = `${process.env.REACT_APP_API_URL}/api/orders/upload-file`;
 
       const res = await axios.post(apiUrl, formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -176,7 +176,7 @@ const AddOrder = () => {
   const handleGmailDownload = async () => {
     try {
       setUploadStatus("Uploading...");
-      const apiUrl = `${process.env.REACT_APP_API_BASE_URL}/api/orders/download-gmail-order-file`;
+      const apiUrl = `${process.env.REACT_APP_API_URL}/api/orders/download-gmail-order-file`;
       const res = await axios.get(apiUrl, { withCredentials: true });
 
       if (res.status === 200) {
