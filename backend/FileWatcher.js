@@ -1,15 +1,18 @@
-const chokidar = require("chokidar");
-const path = require("path");
-const { convertXlsxToJsonAndSave } = require("./controllers/orderController");
-const { setDownloadTimestamp } = require("./utils/fileMetadata");
+const chokidar = require('chokidar');
+const path = require('path');
+const fs = require('fs');
+const { convertXlsxToJsonAndSave } = require('./controllers/orderController');
+const { setDownloadTimestamp } = require('./utils/fileMetadata');
 
-const uploadsDir = path.join(__dirname, "uploads");
+const uploadsDir = path.join(__dirname, 'uploads');
 
 let processingQueue = [];
 let isProcessing = false;
+let batchFiles = new Set();
+let batchTimer = null;
 
-function enqueueFile(filename) {
-  processingQueue.push(filename);
+function enqueueFiles(filenames) {
+  processingQueue.push(...filenames);
   processNext();
 }
 
@@ -20,77 +23,80 @@ function processNext() {
   isProcessing = true;
 
   console.log(`🚀 Starting processing for: ${filename}`);
-
-  try {
-    setDownloadTimestamp(filename);
-  } catch (err) {
-    console.error(`❌ Failed to set timestamp for ${filename}:`, err);
-  }
+  setDownloadTimestamp(filename); // ✅ timestamp saved when processing starts
 
   const req = { body: { filename } };
-
-  // Mock a minimal Express-like response object
   const res = {
     status: (statusCode) => ({
       json: (message) => {
         console.log(`Status ${statusCode}:`, message);
+        console.log(`✅ Finished processing: ${filename}`);
+
         isProcessing = false;
-        processNext();
-      },
-    }),
-    send: (message) => {
-      console.log(`Send:`, message);
-      isProcessing = false;
-      processNext();
-    },
-    end: () => {
-      console.log(`End response for ${filename}`);
-      isProcessing = false;
-      processNext();
-    },
+        processNext(); // Move to next in queue
+      }
+    })
   };
 
-  try {
-    convertXlsxToJsonAndSave(req, res, true);
-  } catch (err) {
-    console.error(`❌ Error processing ${filename}:`, err);
-    isProcessing = false;
-    processNext();
-  }
+  convertXlsxToJsonAndSave(req, res, true);
 }
 
-// Watch the 'uploads' directory for new files
+// ✅ Check file size stops changing
+function waitForFileComplete(filePath, callback) {
+  let lastSize = -1;
+
+  const interval = setInterval(() => {
+    try {
+      const { size } = fs.statSync(filePath);
+
+      if (size === lastSize) {
+        clearInterval(interval);
+        callback();
+      } else {
+        lastSize = size;
+      }
+    } catch (err) {
+      console.error(`❌ Error checking file size for ${filePath}:`, err.message);
+    }
+  }, 500);
+}
+
+// ✅ Handle batch logic
+function scheduleBatchProcessing() {
+  if (batchTimer) clearTimeout(batchTimer);
+
+  // Wait 5 seconds after last file arrives to assume batch complete
+  batchTimer = setTimeout(() => {
+    const filesToProcess = Array.from(batchFiles);
+    batchFiles.clear();
+
+    if (filesToProcess.length > 0) {
+      console.log(`📦 Batch complete. Enqueuing ${filesToProcess.length} files...`);
+      enqueueFiles(filesToProcess);
+    }
+  }, 5000);
+}
+
+// ✅ Watch uploads directory
 const watcher = chokidar.watch(uploadsDir, {
-  ignored: /^\./, // ignore hidden files (like .DS_Store)
-  persistent: true,
-  ignoreInitial: false, // process existing files on startup too
+  ignored: /^\./,
+  persistent: true
 });
 
-watcher
-  .on("add", (filePath) => {
-    const filename = path.basename(filePath);
+watcher.on('add', (filePath) => {
+  console.log(`📥 File added: ${filePath}`);
 
-    // ⛔ Skip unwanted files like .gitkeep
-    if (filename === ".gitkeep") {
-      console.log("⚠️ Skipping .gitkeep file");
-      return;
-    }
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === '.xlsx' || ext === '.csv') {
+    waitForFileComplete(filePath, () => {
+      const filename = path.basename(filePath);
+      console.log(`✅ File ready: ${filename}`);
+      batchFiles.add(filename);  // add to batch
+      scheduleBatchProcessing(); // reset batch timer
+    });
+  }
+});
 
-    console.log(`📥 File added: ${filePath}`);
-    const ext = path.extname(filePath).toLowerCase();
-    if (ext === ".xlsx" || ext === ".csv") {
-      enqueueFile(filename);
-    } else {
-      console.log(`⚠️ Ignored non-data file: ${filename}`);
-    }
-  })
-  .on("ready", () => {
-    console.log("✅ File watcher is ready and monitoring uploads...");
-  })
-  .on("error", (err) => {
-    console.error("❌ Watcher error:", err);
-  });
-
-console.log("👀 Watching for new files in the uploads directory...");
+console.log('👀 Watching for new files in the uploads directory...');
 
 module.exports = {};
