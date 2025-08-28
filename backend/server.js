@@ -31,7 +31,7 @@ const app = express();
 app.use(express.json({ limit: "400mb" }));
 app.use(express.urlencoded({ extended: true, limit: "400mb" }));
 app.use(helmet());
-app.use(cors({ origin: 'https://oms-coral.vercel.app', credentials: true }));
+app.use(cors({ origin: 'https://oms-2.onrender.com', credentials: true }));
 
 app.use(
   session({
