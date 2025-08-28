@@ -20,6 +20,7 @@
     "csv-parser": "^3.2.0",
     "csvtojson": "^2.0.10",
     "dotenv": "^17.2.0",
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "express-session": "^1.18.2",
     "googleapis": "^153.0.0",
