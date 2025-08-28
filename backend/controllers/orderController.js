@@ -475,13 +475,11 @@ exports.convertXlsxToJsonAndSave = async (req, res, update = false) => {
 
       res.status(200).json({
         message: `${updatedOrders.length} orders updated successfully from ${filename}`,
-        data: updatedOrders,
       });
     } else {
       const createdOrders = await Order.insertMany(formattedOrders);
       res.status(201).json({
         message: `${createdOrders.length} orders created successfully from ${filename}`,
-        data: createdOrders,
       });
     }
   } catch (error) {
