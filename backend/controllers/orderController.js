@@ -2,6 +2,8 @@ const { getOrdersDB } = require("../config/db"); // Ensure proper path to db.js
 const xlsx = require("xlsx");
 const fs = require("fs");
 const path = require("path");
+const ExcelJS = require("exceljs");
+const csv = require("csv-parser");
 
 // 🔧 Utility function to parse Excel or ISO-like dates, including custom formats like DD-MM-YYYY
 const parseExcelDate = (input) => {
@@ -358,17 +360,43 @@ exports.convertXlsxToJsonAndSave = async (req, res, update = false) => {
       return res.status(400).json({ error: "Invalid file format" });
     }
 
-    // ✅ Read file
-    const isCSV = ext === ".csv";
-    const workbook = xlsx.readFile(
-      filePath,
-      isCSV ? { type: "file", raw: false } : undefined
-    );
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const jsonData = xlsx.utils.sheet_to_json(sheet);
+    // ✅ Prepare to collect formattedOrders
+    const formattedOrders = [];
 
-    // ✅ Format into Orders
-    const formattedOrders = jsonData.map((order) => {
+    // ✅ Stream CSV row by row
+    const processCSV = () =>
+      new Promise((resolve, reject) => {
+        fs.createReadStream(filePath)
+          .pipe(csv())
+          .on("data", (order) => {
+            formattedOrders.push(formatOrder(order));
+          })
+          .on("end", () => resolve())
+          .on("error", reject);
+      });
+
+    // ✅ Stream XLSX row by row
+    const processXLSX = async () => {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.readFile(filePath, { worksheets: "emit" });
+
+      const worksheet = workbook.worksheets[0];
+      const header = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) {
+          row.eachCell((cell) => header.push(cell.text));
+        } else {
+          const order = {};
+          row.eachCell((cell, colNumber) => {
+            order[header[colNumber - 1]] = cell.value;
+          });
+          formattedOrders.push(formatOrder(order));
+        }
+      });
+    };
+
+    // ✅ Common order formatter
+    function formatOrder(order) {
       let orderDateVal = order.orderDate || order["Order Date"];
       let orderTimeVal = order.orderTimeStamp || order["Order Timestamp"];
       let orderDate, orderTimeStamp;
@@ -422,7 +450,14 @@ exports.convertXlsxToJsonAndSave = async (req, res, update = false) => {
           order.deliveredWithOTP || order["Delivered With OTP"]
         ),
       };
-    });
+    }
+
+    // ✅ Choose processor
+    if (ext === ".csv") {
+      await processCSV();
+    } else {
+      await processXLSX();
+    }
 
     initOrderModel();
 
