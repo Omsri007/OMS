@@ -1,6 +1,6 @@
 require("dotenv").config();
 require("./cronScheduler");
-require("./fileWatcher"); // This will start watching the uploads folder
+require("./FileWatcher"); // This will start watching the uploads folder
 const express = require("express");
 const session = require("express-session");
 // const passport = require('passport');
@@ -15,8 +15,8 @@ const fs = require("fs");
 
 const { connectDBs, getAuthDB } = require("./config/db");
 // const { setPassportDB } = require('./config/passport');
-const authRoutes = require("./routes/authRoutes");
-const orderRoutes = require("./routes/orderRoutes");
+const authRoutes = require("./Routes/authRoutes");
+const orderRoutes = require("./Routes/OrderRoutes");
 const googleClientRoute = require("./Routes/googleClient");
 const uploadRoutes = require("./Routes/uploadRoutes");
 const googleRoute = require("./Routes/googleRoutes");
@@ -31,7 +31,7 @@ const app = express();
 app.use(express.json({ limit: "400mb" }));
 app.use(express.urlencoded({ extended: true, limit: "400mb" }));
 app.use(helmet());
-app.use(cors({ origin: `${process.env.FRONTEND_URL}`, credentials: true }));
+app.use(cors({ origin: 'https://oms-coral.vercel.app', credentials: true }));
 
 app.use(
   session({
