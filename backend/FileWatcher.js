@@ -1,20 +1,19 @@
 const chokidar = require('chokidar');
 const path = require('path');
 const fs = require('fs');
-const https = require('https');
-const http = require('http');
 const { convertXlsxToJsonAndSave } = require('./controllers/orderController');
-const { downloadGmailOrderFile } = require("./cron/downloadGmailOrderFile");
 const { setDownloadTimestamp } = require('./utils/fileMetadata');
 
 const uploadsDir = path.join(__dirname, 'uploads');
 
 let processingQueue = [];
 let isProcessing = false;
+let batchFiles = new Set();
+let batchTimer = null;
 
-function enqueueFile(filename) {
-  processingQueue.push(filename);
-  processNext(); // Trigger queue processing
+function enqueueFiles(filenames) {
+  processingQueue.push(...filenames);
+  processNext();
 }
 
 function processNext() {
@@ -24,17 +23,17 @@ function processNext() {
   isProcessing = true;
 
   console.log(`🚀 Starting processing for: ${filename}`);
-  setDownloadTimestamp(filename);
+  setDownloadTimestamp(filename); // ✅ timestamp saved when processing starts
 
   const req = { body: { filename } };
   const res = {
     status: (statusCode) => ({
       json: (message) => {
         console.log(`Status ${statusCode}:`, message);
+        console.log(`✅ Finished processing: ${filename}`);
 
-        // ✅ Done processing this file, move to the next
         isProcessing = false;
-        processNext();
+        processNext(); // Move to next in queue
       }
     })
   };
@@ -42,7 +41,43 @@ function processNext() {
   convertXlsxToJsonAndSave(req, res, true);
 }
 
-// Watch the 'uploads' directory for new files
+// ✅ Check file size stops changing
+function waitForFileComplete(filePath, callback) {
+  let lastSize = -1;
+
+  const interval = setInterval(() => {
+    try {
+      const { size } = fs.statSync(filePath);
+
+      if (size === lastSize) {
+        clearInterval(interval);
+        callback();
+      } else {
+        lastSize = size;
+      }
+    } catch (err) {
+      console.error(`❌ Error checking file size for ${filePath}:`, err.message);
+    }
+  }, 500);
+}
+
+// ✅ Handle batch logic
+function scheduleBatchProcessing() {
+  if (batchTimer) clearTimeout(batchTimer);
+
+  // Wait 5 seconds after last file arrives to assume batch complete
+  batchTimer = setTimeout(() => {
+    const filesToProcess = Array.from(batchFiles);
+    batchFiles.clear();
+
+    if (filesToProcess.length > 0) {
+      console.log(`📦 Batch complete. Enqueuing ${filesToProcess.length} files...`);
+      enqueueFiles(filesToProcess);
+    }
+  }, 5000);
+}
+
+// ✅ Watch uploads directory
 const watcher = chokidar.watch(uploadsDir, {
   ignored: /^\./,
   persistent: true
@@ -53,12 +88,15 @@ watcher.on('add', (filePath) => {
 
   const ext = path.extname(filePath).toLowerCase();
   if (ext === '.xlsx' || ext === '.csv') {
-    const filename = path.basename(filePath);
-    enqueueFile(filename); // 👈 Enqueue instead of direct call
+    waitForFileComplete(filePath, () => {
+      const filename = path.basename(filePath);
+      console.log(`✅ File ready: ${filename}`);
+      batchFiles.add(filename);  // add to batch
+      scheduleBatchProcessing(); // reset batch timer
+    });
   }
 });
 
 console.log('👀 Watching for new files in the uploads directory...');
 
-module.exports = {
-};
+module.exports = {};

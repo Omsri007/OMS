@@ -2,6 +2,8 @@ const { getOrdersDB } = require("../config/db"); // Ensure proper path to db.js
 const xlsx = require("xlsx");
 const fs = require("fs");
 const path = require("path");
+const ExcelJS = require("exceljs");
+const csv = require("csv-parser");
 
 // 🔧 Utility function to parse Excel or ISO-like dates, including custom formats like DD-MM-YYYY
 const parseExcelDate = (input) => {
@@ -345,166 +347,124 @@ exports.convertXlsxToJsonAndSave = async (req, res, update = false) => {
   try {
     const uploadsDir = path.join(__dirname, "..", "uploads");
 
-    const waitForLatestFiles = async (
-      dir,
-      count = 2,
-      extensions = [".csv", ".xlsx"],
-      timeout = 20000,
-      checkInterval = 1000
-    ) => {
-      const start = Date.now();
+    // 👇 Always take the filename passed from watcher
+    const filename = req.body.filename;
+    const filePath = path.join(uploadsDir, filename);
 
-      const getValidFiles = () => {
-        return fs
-          .readdirSync(dir)
-          .filter((file) =>
-            extensions.includes(path.extname(file).toLowerCase())
-          )
-          .map((file) => ({
-            name: file,
-            path: path.join(dir, file),
-            size: fs.statSync(path.join(dir, file)).size,
-            time: fs.statSync(path.join(dir, file)).mtime.getTime(),
-          }))
-          .sort((a, b) => b.time - a.time)
-          .slice(0, count);
-      };
+    if (!fs.existsSync(filePath)) {
+      return res.status(400).json({ error: `File ${filename} not found.` });
+    }
 
-      let lastSizes = [];
+    const ext = path.extname(filename).toLowerCase();
+    if (![".csv", ".xlsx"].includes(ext)) {
+      return res.status(400).json({ error: "Invalid file format" });
+    }
 
-      return new Promise((resolve, reject) => {
-        const interval = setInterval(() => {
-          if (Date.now() - start > timeout) {
-            clearInterval(interval);
-            return reject(
-              new Error("Timeout: Not enough files downloaded in time")
-            );
-          }
+    // ✅ Prepare to collect formattedOrders
+    const formattedOrders = [];
 
-          const files = getValidFiles();
+    // ✅ Stream CSV row by row
+    const processCSV = () =>
+      new Promise((resolve, reject) => {
+        fs.createReadStream(filePath)
+          .pipe(csv())
+          .on("data", (order) => {
+            formattedOrders.push(formatOrder(order));
+          })
+          .on("end", () => resolve())
+          .on("error", reject);
+      });
 
-          if (files.length < count) return;
+    // ✅ Stream XLSX row by row
+    const processXLSX = async () => {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.readFile(filePath, { worksheets: "emit" });
 
-          const sizes = files.map((f) => f.size);
-          if (
-            lastSizes.length > 0 &&
-            sizes.every((size, i) => size === lastSizes[i])
-          ) {
-            clearInterval(interval);
-            return resolve(files.map((f) => f.name));
-          }
-
-          lastSizes = sizes;
-        }, checkInterval);
+      const worksheet = workbook.worksheets[0];
+      const header = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) {
+          row.eachCell((cell) => header.push(cell.text));
+        } else {
+          const order = {};
+          row.eachCell((cell, colNumber) => {
+            order[header[colNumber - 1]] = cell.value;
+          });
+          formattedOrders.push(formatOrder(order));
+        }
       });
     };
 
-    let latestTwoFiles = [];
+    // ✅ Common order formatter
+    function formatOrder(order) {
+      let orderDateVal = order.orderDate || order["Order Date"];
+      let orderTimeVal = order.orderTimeStamp || order["Order Timestamp"];
+      let orderDate, orderTimeStamp;
 
-    try {
-      latestTwoFiles = await waitForLatestFiles(uploadsDir);
-    } catch (err) {
-      // If timeout or fewer files are present, process only the latest available one
-      const allFiles = fs
-        .readdirSync(uploadsDir)
-        .filter((file) =>
-          [".csv", ".xlsx"].includes(path.extname(file).toLowerCase())
-        )
-        .map((file) => ({
-          name: file,
-          time: fs.statSync(path.join(uploadsDir, file)).mtime.getTime(),
-        }))
-        .sort((a, b) => b.time - a.time);
-
-      if (allFiles.length > 0) {
-        console.warn("Only one file available. Proceeding with a single file.");
-        latestTwoFiles = [allFiles[0].name];
+      if (
+        orderDateVal &&
+        typeof orderDateVal === "string" &&
+        /\d{2}[:]\d{2}/.test(orderDateVal)
+      ) {
+        ({ orderDate, orderTimeStamp } = splitDateTimeIfCombined(orderDateVal));
       } else {
-        // No files to process at all
-        return res
-          .status(400)
-          .json({ error: "No valid files found to process." });
+        orderDate = parseExcelDate(orderDateVal);
+
+        // Try to get time from Order Timestamp, or fallback to Order Date
+        const timestampSource = orderTimeVal || orderDateVal;
+        const parsedTime = parseDateTimeFromString(timestampSource);
+        orderTimeStamp = parsedTime ? formatDateTime(parsedTime) : "";
       }
+
+      return {
+        orderId: order.orderId || order["Order ID"] || order["Order Id"],
+        orderDate,
+        orderTimeStamp,
+        oldItemStatus:
+          order.oldItemStatus ||
+          order["Old Item Status"] ||
+          order["Order Status"] ||
+          "",
+        buybackCategory:
+          order.buybackCategory ||
+          order["Buyback Category"] ||
+          order["BuyBack Category"],
+        partnerId: order.partnerId || order["Partner ID"],
+        partnerEmail: order.partnerEmail || order["Partner Email"],
+        partnerShop: order.partnerShop || order["Partner Shop"] || order["City"],
+        oldItemDetails:
+          order.oldItemDetails ||
+          order["Old Item Details"] ||
+          order["Used Item Info"],
+        baseDiscount:
+          order.baseDiscount ||
+          order["Base Discount"] ||
+          order["Base Exchange Value"] ||
+          0,
+        deliveryFee: order.deliveryFee || order["Delivery Fee"] || 0,
+        trackingId: order.trackingId || order["Tracking ID"],
+        deliveryDate: parseExcelDate(
+          order.deliveryDate || order["Delivery Date"]
+        ),
+        deliveredWithOTP: Boolean(
+          order.deliveredWithOTP || order["Delivered With OTP"]
+        ),
+      };
     }
 
-    const allFormattedOrders = [];
-
-    for (const filename of latestTwoFiles) {
-      const filePath = path.join(uploadsDir, filename);
-      const isCSV = path.extname(filename).toLowerCase() === ".csv";
-      const workbook = xlsx.readFile(
-        filePath,
-        isCSV ? { type: "file", raw: false } : undefined
-      );
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = xlsx.utils.sheet_to_json(sheet);
-
-      const formattedOrders = jsonData.map((order) => {
-        let orderDateVal = order.orderDate || order["Order Date"];
-        let orderTimeVal = order.orderTimeStamp || order["Order Timestamp"];
-        let orderDate, orderTimeStamp;
-
-        if (
-          orderDateVal &&
-          typeof orderDateVal === "string" &&
-          /\d{2}[:]\d{2}/.test(orderDateVal)
-        ) {
-          ({ orderDate, orderTimeStamp } =
-            splitDateTimeIfCombined(orderDateVal));
-        } else {
-          orderDate = parseExcelDate(orderDateVal);
-
-          // Try to get time from Order Timestamp, or fallback to Order Date
-          const timestampSource = orderTimeVal || orderDateVal;
-          const parsedTime = parseDateTimeFromString(timestampSource);
-          orderTimeStamp = parsedTime ? formatDateTime(parsedTime) : "";
-        }
-
-        return {
-          orderId: order.orderId || order["Order ID"] || order["Order Id"],
-          orderDate,
-          orderTimeStamp,
-          oldItemStatus:
-            order.oldItemStatus ||
-            order["Old Item Status"] ||
-            order["Order Status"] ||
-            "",
-          buybackCategory:
-            order.buybackCategory ||
-            order["Buyback Category"] ||
-            order["BuyBack Category"],
-          partnerId: order.partnerId || order["Partner ID"],
-          partnerEmail: order.partnerEmail || order["Partner Email"],
-          partnerShop:
-            order.partnerShop || order["Partner Shop"] || order["City"],
-          oldItemDetails:
-            order.oldItemDetails ||
-            order["Old Item Details"] ||
-            order["Used Item Info"],
-          baseDiscount:
-            order.baseDiscount ||
-            order["Base Discount"] ||
-            order["Base Exchange Value"] ||
-            0,
-          deliveryFee: order.deliveryFee || order["Delivery Fee"] || 0,
-          trackingId: order.trackingId || order["Tracking ID"],
-          deliveryDate: parseExcelDate(
-            order.deliveryDate || order["Delivery Date"]
-          ),
-          deliveredWithOTP: Boolean(
-            order.deliveredWithOTP || order["Delivered With OTP"]
-          ),
-        };
-      });
-
-      allFormattedOrders.push(...formattedOrders);
+    // ✅ Choose processor
+    if (ext === ".csv") {
+      await processCSV();
+    } else {
+      await processXLSX();
     }
 
     initOrderModel();
 
+    // ✅ Insert / Update
     if (update) {
       const updatedOrders = [];
-      for (const order of allFormattedOrders) {
+      for (const order of formattedOrders) {
         const updated = await Order.findOneAndUpdate(
           { orderId: order.orderId },
           order,
@@ -514,13 +474,13 @@ exports.convertXlsxToJsonAndSave = async (req, res, update = false) => {
       }
 
       res.status(200).json({
-        message: `${updatedOrders.length} orders updated successfully`,
+        message: `${updatedOrders.length} orders updated successfully from ${filename}`,
         data: updatedOrders,
       });
     } else {
-      const createdOrders = await Order.insertMany(allFormattedOrders);
+      const createdOrders = await Order.insertMany(formattedOrders);
       res.status(201).json({
-        message: `${createdOrders.length} orders created successfully`,
+        message: `${createdOrders.length} orders created successfully from ${filename}`,
         data: createdOrders,
       });
     }
