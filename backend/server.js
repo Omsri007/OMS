@@ -42,6 +42,14 @@ app.use(
   })
 );
 
+// Health check route
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "OMS Backend is running successfully",
+  });
+});
+
 // app.use(passport.initialize());
 // app.use(passport.session());
 
